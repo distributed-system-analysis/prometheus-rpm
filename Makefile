@@ -164,6 +164,25 @@ publish7: sign7
 
 publish: publish8 publish7
 
+
+#+
+# copr builds - runs locally assuming a Fedora, CentOS, or RHEL box.
+#-
+copr-prometheus2:
+	cp prometheus2/* ${HOME}/rpmbuild/SOURCES/
+	spectool -g -R ${HOME}/rpmbuild/SOURCES/prometheus2.spec
+	rpmbuild -bs ${HOME}/rpmbuild/SOURCES/prometheus2.spec
+	copr-cli build ${COPR_USER}/${COPR_REPO} ${HOME}/rpmbuild/SRPMS/prometheus2-*.src.rpm
+
+copr-node_exporter:
+	python3 ./generate.py --templates node_exporter
+	cp node_exporter/* ${HOME}/rpmbuild/SOURCES/
+	spectool -g -R ${HOME}/rpmbuild/SOURCES/autogen_node_exporter.spec
+	rpmbuild -bs ${HOME}/rpmbuild/SOURCES/autogen_node_exporter.spec
+	copr-cli build ${COPR_USER}/${COPR_REPO} ${HOME}/rpmbuild/SRPMS/node_exporter-*.src.rpm
+
+# ====
+
 clean:
 	rm -rf _dist*
 	rm -f **/*.tar.gz

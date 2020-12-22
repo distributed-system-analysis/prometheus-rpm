@@ -22,6 +22,12 @@ Source{{loop.index - 1}}: {{source}}
 {%- endfor %}
 {% endblock sources %}
 
+%if 0%{?rhel} < 8
+BuildRequires: systemd
+%else
+BuildRequires: systemd-rpm-macros
+%endif
+
 {%- block requires %}
 %{?systemd_requires}
 Requires(pre): shadow-utils
