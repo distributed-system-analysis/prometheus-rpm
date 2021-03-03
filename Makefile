@@ -40,6 +40,8 @@ frr_exporter \
 domain_exporter \
 mongodb_exporter
 
+_CONTRT = $(if $(CONTRT),$(CONTRT),"docker")
+
 .PHONY: $(MANUAL) $(AUTO_GENERATED)
 
 all: auto manual
@@ -52,28 +54,28 @@ manual7: $(addprefix build7-,$(MANUAL))
 
 $(addprefix build8-,$(MANUAL)):
 	$(eval PACKAGE=$(subst build8-,,$@))
-	docker run -it --rm \
+	${_CONTRT} run -it --rm \
 		-v ${PWD}/${PACKAGE}:/rpmbuild/SOURCES \
 		-v ${PWD}/_dist8:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/_dist8:/rpmbuild/RPMS/noarch \
 		lest/centos-rpm-builder:8 \
 		build-spec SOURCES/${PACKAGE}.spec
 	# Test the install
-	docker run --privileged -it --rm \
+	${_CONTRT} run --privileged -it --rm \
 		-v ${PWD}/_dist8:/var/tmp/ \
 		lest/centos-rpm-builder:8 \
 		/bin/bash -c '/usr/bin/yum install --verbose -y /var/tmp/${PACKAGE}*.rpm'
 
 $(addprefix build7-,$(MANUAL)):
 	$(eval PACKAGE=$(subst build7-,,$@))
-	docker run -it --rm \
+	${_CONTRT} run -it --rm \
 		-v ${PWD}/${PACKAGE}:/rpmbuild/SOURCES \
 		-v ${PWD}/_dist7:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/_dist7:/rpmbuild/RPMS/noarch \
 		lest/centos-rpm-builder:7 \
 		build-spec SOURCES/${PACKAGE}.spec
 	# Test the install
-	docker run --privileged -it --rm \
+	${_CONTRT} run --privileged -it --rm \
 		-v ${PWD}/_dist7:/var/tmp/ \
 		lest/centos-rpm-builder:7 \
 		/bin/bash -c '/usr/bin/yum install --verbose -y /var/tmp/${PACKAGE}*.rpm'
@@ -87,20 +89,20 @@ $(addprefix build8-,$(AUTO_GENERATED)):
 
 	python3 ./generate.py --templates ${PACKAGE}
 
-	docker run -it --rm \
+	${_CONTRT} run -it --rm \
 		-v ${PWD}/${PACKAGE}:/rpmbuild/SOURCES \
 		-v ${PWD}/_dist8:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/_dist8:/rpmbuild/RPMS/noarch \
 		lest/centos-rpm-builder:8 \
 		build-spec SOURCES/autogen_${PACKAGE}.spec
 	# Test the install
-	docker run --privileged -it --rm \
+	${_CONTRT} run --privileged -it --rm \
 		-v ${PWD}/_dist8:/var/tmp/ \
 		lest/centos-rpm-builder:8 \
 		/bin/bash -c '/usr/bin/yum install --verbose -y /var/tmp/${PACKAGE}*.rpm'
 
 sign8:
-	docker run --rm \
+	${_CONTRT} run --rm \
 		-v ${PWD}/_dist8:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/bin:/rpmbuild/bin \
 		-v ${PWD}/RPM-GPG-KEY-prometheus-rpm:/rpmbuild/RPM-GPG-KEY-prometheus-rpm \
@@ -114,20 +116,20 @@ $(addprefix build7-,$(AUTO_GENERATED)):
 
 	python3 ./generate.py --templates ${PACKAGE}
 
-	docker run -it --rm \
+	${_CONTRT} run -it --rm \
 		-v ${PWD}/${PACKAGE}:/rpmbuild/SOURCES \
 		-v ${PWD}/_dist7:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/_dist7:/rpmbuild/RPMS/noarch \
 		lest/centos-rpm-builder:7 \
 		build-spec SOURCES/autogen_${PACKAGE}.spec
 	# Test the install
-	docker run --privileged -it --rm \
+	${_CONTRT} run --privileged -it --rm \
 		-v ${PWD}/_dist7:/var/tmp/ \
 		lest/centos-rpm-builder:7 \
 		/bin/bash -c '/usr/bin/yum install --verbose -y /var/tmp/${PACKAGE}*.rpm'
 
 sign7:
-	docker run --rm \
+	${_CONTRT} run --rm \
 		-v ${PWD}/_dist7:/rpmbuild/RPMS/x86_64 \
 		-v ${PWD}/bin:/rpmbuild/bin \
 		-v ${PWD}/RPM-GPG-KEY-prometheus-rpm:/rpmbuild/RPM-GPG-KEY-prometheus-rpm \
@@ -161,6 +163,25 @@ publish7: sign7
 	package_cloud push --skip-errors prometheus-rpm/release/el/7 _dist7/*.rpm
 
 publish: publish8 publish7
+
+
+#+
+# copr builds - runs locally assuming a Fedora, CentOS, or RHEL box.
+#-
+copr-prometheus2:
+	cp prometheus2/* ${HOME}/rpmbuild/SOURCES/
+	spectool -g -R ${HOME}/rpmbuild/SOURCES/prometheus2.spec
+	rpmbuild -bs ${HOME}/rpmbuild/SOURCES/prometheus2.spec
+	copr-cli build ${COPR_USER}/${COPR_REPO} ${HOME}/rpmbuild/SRPMS/prometheus2-*.src.rpm
+
+copr-node_exporter:
+	python3 ./generate.py --templates node_exporter
+	cp node_exporter/* ${HOME}/rpmbuild/SOURCES/
+	spectool -g -R ${HOME}/rpmbuild/SOURCES/autogen_node_exporter.spec
+	rpmbuild -bs ${HOME}/rpmbuild/SOURCES/autogen_node_exporter.spec
+	copr-cli build ${COPR_USER}/${COPR_REPO} ${HOME}/rpmbuild/SRPMS/node_exporter-*.src.rpm
+
+# ====
 
 clean:
 	rm -rf _dist*

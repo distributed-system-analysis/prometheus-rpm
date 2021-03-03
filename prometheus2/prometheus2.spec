@@ -12,6 +12,12 @@ Source0: https://github.com/prometheus/prometheus/releases/download/v%{version}/
 Source1: prometheus.service
 Source2: prometheus.default
 
+%if 0%{?rhel} < 8
+BuildRequires: systemd
+%else
+BuildRequires: systemd-rpm-macros
+%endif
+
 %{?systemd_requires}
 Requires(pre): shadow-utils
 
